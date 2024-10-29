@@ -164,6 +164,11 @@ class Mailer implements IMailer {
 	 * @return string[] $failedRecipients
 	 */
 	public function send(IMessage $message): array {
+		if ($this->config->getSystemValueString('mail_smtpmode', 'smtp') === 'null') {
+			// The null transport indicates no mail shall be sent
+			return [];
+		}
+
 		$debugMode = $this->config->getSystemValueBool('mail_smtpdebug', false);
 
 		if (!($message instanceof Message)) {

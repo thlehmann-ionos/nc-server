@@ -113,6 +113,19 @@ class MailerTest extends TestCase {
 		$this->assertEquals($sendmail, self::invokePrivate($this->mailer, 'getSendMailInstance'));
 	}
 
+	public function testGetSendmailInstanceSendMailNull(): void {
+		$this->config
+			->expects($this->exactly(1))
+			->method('getSystemValueString')
+			->with('mail_smtpmode', 'smtp')
+			->willReturn('null');
+
+		$this->dispatcher->expects($this->never())
+			->method('dispatchTyped');
+
+		$this->mailer->send($this->createMock(Message::class));
+	}
+
 	public function testGetInstanceDefault() {
 		$this->config
 			->method('getSystemValue')

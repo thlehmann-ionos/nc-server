@@ -26,16 +26,14 @@ on:
       - '**.vue'
   push:
     branches:
-      - main
-      - master
-      - stable*
-      - ionos-dev
-      - ionos-dev30
+      # Enable once approved
+      # - ionos-dev
+      - tl/dev/workflow-build-snapshots-with-releases
+
 
 env:
-  TARGET_PACKAGE_NAME: hidrive-next.zip
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  PACKAGE_NAME_PREFIX: hidrive-next
+  PACKAGE_NAME_EXTENSION: zip
 
 permissions:
   contents: read
@@ -45,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     name: hidrive-next-build
@@ -96,72 +94,41 @@ jobs:
       - name: Add config partials
         run: make -f IONOS/Makefile add_config_partials
 
+      - name: Build package name
+        run: |
+          TAG_NAME="rel-$( date '+%Y%m%d-%H%M%S' )"
+          SAFE_REF_NAME=${GITHUB_REF_NAME/\//-}
+          echo "TAG_NAME=${TAG_NAME}" >> ${GITHUB_ENV}
+          echo "PACKAGE_NAME=${PACKAGE_NAME_PREFIX}-${TAG_NAME}.${PACKAGE_NAME_EXTENSION}" >> ${GITHUB_ENV}
+
       - name: Zip dependencies
-        run: make -f IONOS/Makefile zip_dependencies TARGET_PACKAGE_NAME=${{ env.TARGET_PACKAGE_NAME }}
+        run: make -f IONOS/Makefile zip_dependencies TARGET_PACKAGE_NAME=${{ env.PACKAGE_NAME }}
 
-      - name: Upload artifact result for job hidrive-next-build
-        uses: actions/upload-artifact@v4
+      - name: Checksum
+        run: sha256sum ${{ env.PACKAGE_NAME }} >> ${{ env.PACKAGE_NAME }}.sha256
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: hidrive_next_build_zip
-          path: ${{ env.TARGET_PACKAGE_NAME }}
-
-      - name: Show changes on failure
-        if: failure()
-        run: |
-          git status
-          git --no-pager diff
-          exit 1 # make it red to grab attention
-
-  hidirve-next-artifact-to-ghcr_io:
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      packages: write
-
-    name: Push artifact to ghcr.io
-    needs: hidrive-next-build
-
-    steps:
-      - name: Download artifact zip
-        uses: actions/download-artifact@v4
-        with:
-          name: hidrive_next_build_zip
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
-        with:
-          images: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-
-      - name: Create Dockerfile
-        run: |
-          cat >Dockerfile << EOF
-          FROM busybox as builder
-          COPY ./${{ env.TARGET_PACKAGE_NAME }} /
-          WORKDIR /builder
-          RUN unzip /${{ env.TARGET_PACKAGE_NAME }} -d /builder
-
-          FROM scratch
-          WORKDIR /app
-          VOLUME /app
-          COPY --from=builder /builder /app
-          EOF
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          # Draft
+          #
+          # * allows release creation withouth a tag
+          # * does not list releases (they're accessible via hidden URL)
+          #
+          # Downside: the release is not queriable via API without token or
+          #           with fine-grained access tokens with content:read
+          #           permission. Only classic personal tokens with
+          #           "public_repo" allow querying via:
+          # curl --silent -L  -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${TOKEN}"  https://api.github.com/repos/<OWNER>/<REPO>/releases | jq '.[] | select(.draft == true)'
+          #
+          # Create classic token with "public_repo" scope here: https://github.com/settings/tokens/new
+          #
+          draft: false
+          prerelease: true
+          tag_name: ${{ env.TAG_NAME }}
+          files: |
+            ${{ env.PACKAGE_NAME }}
+            ${{ env.PACKAGE_NAME }}.sha256
 
       - name: Show changes on failure
         if: failure()

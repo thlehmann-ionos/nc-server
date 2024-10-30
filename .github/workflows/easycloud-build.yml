@@ -23,7 +23,7 @@ on:
       - '**.js'
       - '**.ts'
       - '**.vue'
-  push:
+  create:
     tags:
       - v1*
       - v2*

@@ -25,11 +25,11 @@ on:
       - '**.ts'
       - '**.vue'
   push:
-    tags:
-      - v1*
-      - v2*
-      - v3*
-      - snap-*
+    branches:
+      # Enable once approved
+      # - ionos-dev
+      - tl/workflow-build-snapshots-with-releases
+
 
 env:
   PACKAGE_NAME_PREFIX: hidrive-next
@@ -96,16 +96,19 @@ jobs:
 
       - name: Build package name
         run: |
+          TAG_NAME="rel-$( date '+%Y%m%d-%H%M%S' )"
           SAFE_REF_NAME=${GITHUB_REF_NAME/\//-}
-          echo "PACKAGE_NAME=${PACKAGE_NAME_PREFIX}-${SAFE_REF_NAME}.${PACKAGE_NAME_EXTENSION}" >> ${GITHUB_ENV}
+          echo "TAG_NAME=${TAG_NAME}" >> ${GITHUB_ENV}
+          echo "PACKAGE_NAME=${PACKAGE_NAME_PREFIX}-${TAG_NAME}.${PACKAGE_NAME_EXTENSION}" >> ${GITHUB_ENV}
 
       - name: Zip dependencies
         run: make -f IONOS/Makefile zip_dependencies TARGET_PACKAGE_NAME=${{ env.PACKAGE_NAME }}
 
       - name: Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
+          prerelease: true
+          tag_name: ${{ env.TAG_NAME }}
           files: ${{ env.PACKAGE_NAME }}
 
       - name: Show changes on failure

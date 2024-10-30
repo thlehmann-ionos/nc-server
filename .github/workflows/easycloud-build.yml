@@ -24,27 +24,22 @@ on:
       - '**.ts'
       - '**.vue'
   push:
-    branches:
-      - main
-      - master
-      - stable*
-      - ionos-dev
-      - ionos-dev30
+    tags:
+      - v1*
+      - v2*
+      - v3*
+      - snap-*
 
 env:
-  TARGET_PACKAGE_NAME: easy-storage.zip
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
-permissions:
-  contents: read
+  PACKAGE_NAME_PREFIX: easy-storage
+  PACKAGE_NAME_EXTENSION: zip
 
 jobs:
   easycloud-build:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     name: easycloud-build
@@ -92,43 +87,19 @@ jobs:
       - name: Add config partials
         run: make -f IONOS/Makefile add_config_partials
 
-      - name: Zip dependencies
-        run: make -f IONOS/Makefile zip_dependencies TARGET_PACKAGE_NAME=${{ env.TARGET_PACKAGE_NAME }}
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
-        with:
-          images: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-
-      - name: Create Dockerfile
+      - name: Build package name
         run: |
-          cat >Dockerfile << EOF
-          FROM busybox as builder
-          COPY ./${{ env.TARGET_PACKAGE_NAME }} /
-          WORKDIR /builder
-          RUN unzip /${{ env.TARGET_PACKAGE_NAME }} -d /builder
+          SAFE_REF_NAME=${GITHUB_REF_NAME/\//-}
+          echo "PACKAGE_NAME=${PACKAGE_NAME_PREFIX}-${SAFE_REF_NAME}.${PACKAGE_NAME_EXTENSION}" >> ${GITHUB_ENV}
 
-          FROM scratch
-          WORKDIR /app
-          VOLUME /app
-          COPY --from=builder /builder /app
-          EOF
+      - name: Zip dependencies
+        run: make -f IONOS/Makefile zip_dependencies TARGET_PACKAGE_NAME=${{ env.PACKAGE_NAME }}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
         with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          files: ${{ env.PACKAGE_NAME }}
 
       - name: Show changes on failure
         if: failure()

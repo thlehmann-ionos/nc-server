@@ -109,7 +109,14 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           # Allowes release creation withouth a tag
-          # Downside: the release is not queriable via API
+          #
+          # Downside: the release is not queriable via API without token or
+          #           with fine-grained access tokens with content:read
+          #           permission. Only classic personal tokens with
+          #           "public_repo" allow querying via:
+          # curl --silent -L  -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${TOKEN}"  https://api.github.com/repos/<OWNER>/<REPO>/releases | jq '.[] | select(.draft == true)'
+          #
+          # Create classic token with "public_repo" scope here: https://github.com/settings/tokens/new
           draft: true
           prerelease: true
           files: |

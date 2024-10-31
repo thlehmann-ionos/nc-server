@@ -96,10 +96,8 @@ jobs:
 
       - name: Build package name
         run: |
-          TAG_NAME="rel-$( date '+%Y%m%d-%H%M%S' )"
-          SAFE_REF_NAME=${GITHUB_REF_NAME/\//-}
-          echo "TAG_NAME=${TAG_NAME}" >> ${GITHUB_ENV}
-          echo "PACKAGE_NAME=${PACKAGE_NAME_PREFIX}-${TAG_NAME}.${PACKAGE_NAME_EXTENSION}" >> ${GITHUB_ENV}
+          SNAP_RELEASE_NAME="rel-$( date '+%Y%m%d-%H%M%S' )"
+          echo "PACKAGE_NAME=${PACKAGE_NAME_PREFIX}-${SNAP_RELEASE_NAME}.${PACKAGE_NAME_EXTENSION}" >> ${GITHUB_ENV}
 
       - name: Zip dependencies
         run: make -f IONOS/Makefile zip_dependencies TARGET_PACKAGE_NAME=${{ env.PACKAGE_NAME }}
@@ -112,7 +110,6 @@ jobs:
         with:
           draft: true
           prerelease: true
-          tag_name: ${{ env.TAG_NAME }}
           files: |
             ${{ env.PACKAGE_NAME }}
             ${{ env.PACKAGE_NAME }}.sha256

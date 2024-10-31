@@ -104,12 +104,17 @@ jobs:
       - name: Zip dependencies
         run: make -f IONOS/Makefile zip_dependencies TARGET_PACKAGE_NAME=${{ env.PACKAGE_NAME }}
 
+      - name: Checksum
+        run: sha256sum ${{ env.PACKAGE_NAME }} >> ${{ env.PACKAGE_NAME }}.sha256
+
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
-          files: ${{ env.PACKAGE_NAME }}
+          files: |
+            ${{ env.PACKAGE_NAME }}
+            ${{ env.PACKAGE_NAME }}.sha256
 
       - name: Show changes on failure
         if: failure()

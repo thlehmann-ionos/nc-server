@@ -28,7 +28,7 @@ on:
     branches:
       # Enable once approved
       # - ionos-dev
-      - tl/workflow-build-snapshots-with-releases
+      - tl/poc/workflow-build-snapshots-with-releases
 
 
 env:
